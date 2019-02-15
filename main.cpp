@@ -134,17 +134,24 @@ void  testOnChache(const std::map<TKey, Elem *>  &mData,
   for (auto&&  it  :  mData)  {
     Elem  *ptr  =  it.second;
 
-        if (ptr->key.keyArray[0]==538286
-            ||ptr->key.keyArray[0]==705025
-                ||ptr->key.keyArray[0]==1505242) {
-            std::cout<<"\n";
-        }
-//        if (0==ptr->data.compare("2409226")
-//                ||0==ptr->data.compare("538286")) {
+//        if (ptr->key.keyArray[0]==538286
+//            ||ptr->key.keyArray[0]==705025
+//                ||ptr->key.keyArray[0]==1505242) {
 //            std::cout<<"\n";
 //        }
+//    if (ptr->key.keyArray[0]==18531564
+//            ||ptr->key.keyArray[0]==17501564) {
+//        std::cout<<"\n";
+//    }
+//        if (ptr->key.keyArray[0] == 45581756
+//                ||ptr->key.keyArray[0] == 44571824) {
+//            std::cout<<"\n";
+//        }
+//    if (ptr->key.keyArray[0] == 284605469) {
+//       std::cout<<"\n";
+//    }
     oCache.insertNode(&(ptr->key),  ptr->data.c_str());
-    oCache.find_bug();
+  // oCache.find_bug();
     ++i;
     if  (i  >=  testSize)  {
       break;
@@ -271,9 +278,9 @@ std::string  getExePathS()  {
 int main(int  argc,  char  *argv[])  {
   /* params: */
   //  if you need same test with same data from previos run:
-  bool  fromFile  =  true;
+  bool  fromFile  =  false;
   //  change hash function for best/worst case:
-  TKey::do_worst_case  =  true;
+  TKey::do_worst_case  =  false;
 
 
   QCoreApplication a(argc, argv);
@@ -358,8 +365,8 @@ int main(int  argc,  char  *argv[])  {
     std::map<std::string, TFunc>  mFun;
 
     //Used alhorithms:
-    //mFun.insert(std::make_pair(std::string("QChache"),  testQChache));
-    //mFun.insert(std::make_pair(std::string("STLChache"),  testSTLChache));
+    mFun.insert(std::make_pair(std::string("QChache"),  testQChache));
+    mFun.insert(std::make_pair(std::string("STLChache"),  testSTLChache));
     mFun.insert(std::make_pair(std::string("OnChache"),  testOnChache));
     for (auto&&  p:  mFun)  {
         //*p(mData, strInsert, strFind, testSize, capacity);        
@@ -371,15 +378,18 @@ int main(int  argc,  char  *argv[])  {
                 .append(".find (micros)");        
       unsigned int  testSize  =  START_LOGPOINT;
       unsigned int  capacity  =  testSize / 10;
-        //p.second(mData, strInsert, strFind, 1000, 100);
-        //p.second(mData, strInsert, strFind, 100000, 10000);
-        p.second(mData, strInsert, strFind, 10000, 1000);
 
-//      while (testSize  <=  TEST_MAXSIZE)  {
-//        p.second(mData,  strInsert,  strFind,  testSize,  capacity);
-//        capacity  =  testSize;
-//        testSize  *= 10;
-//      }
+        //p.second(mData, strInsert, strFind, 1000, 100);
+        //p.second(mData, strInsert, strFind, 10000, 1000);
+        //p.second(mData, strInsert, strFind, 100000, 10000);
+        //p.second(mData, strInsert, strFind, 1000000, 100000);
+
+
+      while (testSize  <=  TEST_MAXSIZE)  {
+        p.second(mData,  strInsert,  strFind,  testSize,  capacity);
+        capacity  =  testSize;
+        testSize  *= 10;
+      }
       strInsert.push_back('\n');
       strFind.push_back('\n');
       csvfile.write (strInsert.c_str(), strInsert.length());

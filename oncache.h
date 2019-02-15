@@ -70,8 +70,7 @@ class TKey  {
   unsigned long long  hash() const  {
     const unsigned long long re  =  keyArray[0]  +  keyArray[1]  +  keyArray[2];
     if  (do_worst_case)  {
-      //return  (re % 10);
-      return  (re % 100000);
+      return  (re % 1000);
     }
     return  (re < 9223372036854775807ll)?  re  :  (re >> 1);
   }
@@ -181,9 +180,13 @@ class  OnCache  {
       }
       while (cur)  {
         assert(cur->hash % _hash_baskets  ==  b);
-        for (unsigned char  h  =  0;  h  <  SKIPHEIGHT;  ++h)  {
+        int  h_last  =  0;
+        for (int  h  =  4;  h  >=  0;  --h)  {
           if (cur->fwdPtrs[h]) {
             assert(cur->fwdPtrs[h]->hash % _hash_baskets  ==  b);
+            h_last  =  h;
+          }  else  {
+            assert(0 == h_last);
           }
         }
         cur  =  cur->fwdPtrs[0];
@@ -320,17 +323,32 @@ class  OnCache  {
     if (!re)  {
             //reuse an older node            
       re  =  headNode.leastUseful;
-      if (re->key->keyArray[0]==138286) {
-          std::cout<<"\n";
-      }
+//      if (re->key->keyArray[0]==37806435) {
+//          std::cout<<"\n";
+//      }
       headNode.leastUseful  =  re->mostUseful;
       re->mostUseful->leastUseful  =  &headNode;
             //check if this is head of basket:            
       if (hash  ==  re->hash)  {
-        if (re  !=  prevHead)  {
+        if (re  ==  prevHead)  {
+          //cmp  =  777;
+          _f_delData(re->data);
+          //New leader = new:
+          re->mostUseful  =  &headNode;
+          re->leastUseful  =  headNode.mostUseful;
+          headNode.mostUseful->mostUseful  =  re;
+          if (&headNode  ==  headNode.leastUseful)  {
+              //The first became last too:
+            headNode.leastUseful  =  re;
+          }
+          headNode.mostUseful  =  re;
+          re->key  =  key;
+          re->data  =  data;
+          return;
+        }  else  {
           delInSameBasket(re);
           prevHead  =  updatePathOut[0];
-        } //else will replace at place
+        }
       } else if (basketID  ==  re->hash % _hash_baskets)  {
         delInSameBasket(re);
         prevHead  =  updatePathOut[0];
@@ -340,7 +358,9 @@ class  OnCache  {
       _f_delData(re->data);
     }  //  if (!re)
 
+
     memset(re,  0,  sizeof(TONode));
+
         //New leader = new:        
     re->mostUseful  =  &headNode;
     re->leastUseful  =  headNode.mostUseful;
@@ -368,11 +388,7 @@ class  OnCache  {
 //        ++i;
 //      }
     }  else  {
-      //replace at place
-      if  (re  ==  prevHead)  {
-        re->key  =  key;
-        re->data  =  data;
-      }  else  {
+      //replace at place 
         re->key  =  prevHead->key;
         re->data  =  prevHead->data;
         re->curHeight  =  landscape_l[(land_l_p[basketID])++];
@@ -383,8 +399,7 @@ class  OnCache  {
           prevHead->fwdPtrs[1]  =  re;
         }
         prevHead->key  =  key;
-        prevHead->data  =  data;
-      }
+        prevHead->data  =  data;      
     }
     return;
   }  //  allocNode
@@ -395,7 +410,7 @@ class  OnCache  {
     const unsigned short basketID  =  hash % _hash_baskets;
     TONode * cur  =  &(baskets[basketID]);
     int h  =  4;//cur->curHeight;
-    while (h>1)  {
+    while (h  >  1)  {
       while (cur->fwdPtrs[h]  &&  hash  >  cur->fwdPtrs[h]->hash)  {
         cur  =  cur->fwdPtrs[h]; //step on it
       }
@@ -454,12 +469,18 @@ class  OnCache  {
       TONode  *cur  =  &(baskets[basketID]);
       int  h  =  4;  //cur->curHeight;
       hashOut  =  hash;
-      while ( h>1 )  {
+      while (h  >  1)  {
+        updatePathOut[h]  =  cur;
         while (cur->fwdPtrs[h] && hash  >  cur->fwdPtrs[h]->hash)  {
           cur  =  cur->fwdPtrs[h];  //step on it
+          updatePathOut[h]  =  cur;
         }
             //Update path always point to node that point to bigger or equal one            
-        updatePathOut[h] = cur;
+        //updatePathOut[h] = cur;
+        //if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
+//        if (cur->fwdPtrs[h]  &&  hash >= cur->fwdPtrs[h]->hash)   {
+//          updatePathOut[h]  =  cur;
+//        }
         --h;
       } //while
 
@@ -473,7 +494,12 @@ class  OnCache  {
           updatePathOut[0]  =  updatePathOut[1]  =  cur;
           return cmp; //must replace hash head in place
         }
-
+        //updatePathOut[2]  =  cur;
+        //step on queue head:
+        while (h  <  cur->curHeight)  {
+          ++h;
+          updatePathOut[h]  =  cur;
+        }
         while (cur->fwdPtrs[1] && hash  ==  cur->fwdPtrs[1]->hash)  {
           cmp  =  key->cmp(cur->fwdPtrs[1]->key);
           if (cmp  <  0)  {
@@ -540,18 +566,26 @@ class  OnCache  {
 //same hash jumps        
       while ( h>1 )  {
         updatePath[h]  =  cur;
-        while (cur->fwdPtrs[h] && hash  >  cur->fwdPtrs[h]->hash)  {
-          updatePath[h]  =  cur; //start from head that always smaller
-          cur  =  cur->fwdPtrs[h]; //step on it
-        }
-        //if (cur->fwdPtrs[h]  &&  hash  ==  cur->fwdPtrs[h]->hash)  {
-        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)  {
+        while (cur->fwdPtrs[h]
+               &&  hash >= cur->fwdPtrs[h]->hash
+               &&  nodeToDel != cur->fwdPtrs[h])  {
+          cur  =  cur->fwdPtrs[h];
           updatePath[h]  =  cur;
         }
+        //if (cur->fwdPtrs[h]  &&  hash  ==  cur->fwdPtrs[h]->hash)  {
+//        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)  {
+//          updatePath[h]  =  cur;
+//        }
         --h;
       } //while
 
-        //same key jumps        
+      //cur to first same hash 4
+      while (hash  !=  cur->fwdPtrs[1]->hash) {
+        cur  =  cur->fwdPtrs[1];
+      }
+      updatePath[1]  =  cur;
+
+      //same hash jumps
       while (cur->fwdPtrs[1] && hash  ==  cur->fwdPtrs[1]->hash)  {
         updatePath[1]  =  cur; //need in case of null==cur->fwdPtrs[1]
         if (nodeToDel->key->cmp(cur->fwdPtrs[1]->key)  <=  0)  {
@@ -564,11 +598,11 @@ class  OnCache  {
         cur  =  cur->fwdPtrs[0]; //step on it
       }
       updatePath[0]  =  cur;
-
       if (updatePath[2]->fwdPtrs[2]  ==  nodeToDel)  {
             //This is the head of hash queue:            
         cur  =  nodeToDel->fwdPtrs[0]; //new head
-        if (cur  &&  cur->curHeight  <  nodeToDel->curHeight)  {
+        //if (cur  &&  cur->curHeight  <  nodeToDel->curHeight)  {
+        if (cur  &&  cur->hash  ==  nodeToDel->hash)  {
           for (h = nodeToDel->curHeight;  h  >  cur->curHeight;  --h)  {
             cur->fwdPtrs[h]  =  nodeToDel->fwdPtrs[h];  // new head see what nodeToDel see now
             nodeToDel->fwdPtrs[h]  =  cur; // that will be used next for updatePath[h]->fwdPtrs[h]
@@ -592,6 +626,16 @@ class  OnCache  {
         }
         if (nodeToDel  ==  updatePathOut[h]->fwdPtrs[h])  {
           //best case - know where and how to update
+          //just check if not on Path:
+          int h2  =  h  -  1;
+          while (h2  >=  0)  {
+            if (nodeToDel  ==  updatePathOut[h2])  {
+              //worst case - must do repath
+              delInSameBasketPathOut(nodeToDel, h2);
+              return;
+            }
+            --h2;
+          }
           delInSameBasketSuperFast(nodeToDel, h);
           return;
         }
@@ -602,26 +646,40 @@ class  OnCache  {
     }
 
     void delInSameBasketPathOut(TONode  *nodeToDel,  int  top_h)  {
-        //Node to del in updatePathOut[h], need path to it for update        
+        //Node to del in updatePathOut[h], need path to it for update
+      //new path may be not the same
       const unsigned long long  hash  =  nodeToDel->hash;
       TONode  *updatePath[SKIPHEIGHT];
       int  h  =  4;
       TONode  *cur  =  &(baskets[hash % _hash_baskets]);
+      if  (nodeToDel->curHeight  >  top_h)  {
+        top_h  =  nodeToDel->curHeight;
+      }
+
       while (h  >  top_h)  {
-        cur=updatePath[h]  =  updatePathOut[h];
+        cur  =  updatePath[h]  =  updatePathOut[h];
         --h;
       }
       while (h  >  1)  {
         updatePath[h]  =  cur;
-        while (hash  >  cur->fwdPtrs[h]->hash)  {
-          updatePath[h]  =  cur;
+        //while (hash  >=  cur->fwdPtrs[h]->hash)  {
+        while (cur->fwdPtrs[h]
+               &&  hash >= cur->fwdPtrs[h]->hash
+               &&  nodeToDel != cur->fwdPtrs[h])  {
           cur  =  cur->fwdPtrs[h];
+          updatePath[h]  =  cur;          
         }
-        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
-          updatePath[h]  =  cur;
-        }
+//        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
+//          updatePath[h]  =  cur;
+//        }
         --h;
       } //while
+
+      //cur to first same hash 1
+      while (hash  !=  cur->fwdPtrs[1]->hash) {
+        cur  =  cur->fwdPtrs[1];
+      }
+      updatePath[1]  =  cur;
 
         //same key jumps        
       while (cur->fwdPtrs[1] && hash  ==  cur->fwdPtrs[1]->hash)  {
@@ -641,7 +699,7 @@ class  OnCache  {
       if (updatePath[2]->fwdPtrs[2]  ==  nodeToDel)  {
         //This is the head of hash queue:
         cur  =  nodeToDel->fwdPtrs[0]; //new head
-        if (cur  &&  cur->curHeight  <  nodeToDel->curHeight)  {
+        if (cur  &&  cur->hash  ==  nodeToDel->hash)  {
           for (h = nodeToDel->curHeight;  h  >  cur->curHeight;  --h)  {
             cur->fwdPtrs[h]  =  nodeToDel->fwdPtrs[h];  // new head see what nodeToDel see now
             nodeToDel->fwdPtrs[h]  =  cur; // that will be used next for updatePath[h]->fwdPtrs[h]
@@ -669,24 +727,36 @@ class  OnCache  {
     void delInSameBasketSuperFast(TONode  *nodeToDel,  int  top_h)  {
         //need path before to update pointers        
       const unsigned long long  hash  =  nodeToDel->hash;
-      TONode * updatePath[SKIPHEIGHT];
+      TONode * updatePath[SKIPHEIGHT];            
+      if  (nodeToDel->curHeight  >  top_h)  {
+        top_h  =  nodeToDel->curHeight;
+      }
       updatePath[top_h]  =  updatePathOut[top_h];
       TONode  *cur  =  updatePathOut[top_h];
-      int  h  =  top_h  -  1;
+      int  h  =  top_h;
+
       while (h  >  1)  {
-        if (cur->hash  <  updatePathOut[h]->hash)  {
+        if (nodeToDel->hash  <  updatePathOut[h]->hash)  {
           cur  =  updatePathOut[h];
         }
         updatePath[h]  =  cur;
-        while (cur->fwdPtrs[h] && hash  >  cur->fwdPtrs[h]->hash)  {
-          updatePath[h]  =  cur;
+        while (cur->fwdPtrs[h]
+               &&  hash >= cur->fwdPtrs[h]->hash
+               &&  nodeToDel != cur->fwdPtrs[h])  {
           cur  =  cur->fwdPtrs[h];
-        }
-        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
           updatePath[h]  =  cur;
         }
+//        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
+//          updatePath[h]  =  cur;
+//        }
         --h;
       } //while
+
+      //cur to first same hash 2
+      while (hash  !=  cur->fwdPtrs[1]->hash) {
+        cur  =  cur->fwdPtrs[1];
+      }
+      updatePath[1]  =  cur;
 
         //same key jumps                
       while (cur->fwdPtrs[1] && hash  ==  cur->fwdPtrs[1]->hash)  {
@@ -706,7 +776,7 @@ class  OnCache  {
       if (updatePath[2]->fwdPtrs[2]  ==  nodeToDel)  {
         //This is the head of hash queue:
         cur  =  nodeToDel->fwdPtrs[0]; //new head
-        if (cur  &&  cur->curHeight  <  nodeToDel->curHeight)  {
+        if (cur  &&  cur->hash  ==  nodeToDel->hash)  {
           for (h = nodeToDel->curHeight;  h  >  cur->curHeight;  --h)  {
             cur->fwdPtrs[h]  =  nodeToDel->fwdPtrs[h];  // new head see what nodeToDel see now
             nodeToDel->fwdPtrs[h]  =  cur; // that will be used next for updatePath[h]->fwdPtrs[h]
@@ -733,18 +803,26 @@ class  OnCache  {
           cur  =  updatePathOut[h];
         }
         updatePath[h]  =  cur;
-        while (cur->fwdPtrs[h] && hash  >  cur->fwdPtrs[h]->hash)  {
-          updatePath[h]  =  cur;
+        while (cur->fwdPtrs[h]
+               &&  hash >= cur->fwdPtrs[h]->hash
+               &&  nodeToDel != cur->fwdPtrs[h])  {
           cur  =  cur->fwdPtrs[h];
-        }
-        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
           updatePath[h]  =  cur;
         }
+//        if (cur->fwdPtrs[h]  &&  hash <= cur->fwdPtrs[h]->hash)   {
+//          updatePath[h]  =  cur;
+//        }
         --h;
       } //while
 
-        //same key jumps        
-      updatePath[1]  =  cur; //need in case of null==cur->fwdPtrs[1]
+
+      //cur to first same hash 3
+      while (hash  !=  cur->fwdPtrs[1]->hash) {
+        cur  =  cur->fwdPtrs[1];
+      }
+      updatePath[1]  =  cur;
+
+        //same key jumps              
       while (cur->fwdPtrs[1] && hash  ==  cur->fwdPtrs[1]->hash)  {
         updatePath[1]  =  cur;
         if (nodeToDel->key->cmp(cur->fwdPtrs[1]->key)  <=  0)  {
@@ -762,18 +840,7 @@ class  OnCache  {
       if (updatePath[2]->fwdPtrs[2]  ==  nodeToDel)  {
         //This is the head of hash queue:
         cur  =  nodeToDel->fwdPtrs[0]; //new head
-//        if (cur)  {
-//          for (h = nodeToDel->curHeight;  h  >  0;  --h)  {
-//            if (h  >  cur->curHeight)  {
-//              cur->fwdPtrs[h]  =  nodeToDel->fwdPtrs[h];
-//            }
-//            nodeToDel->fwdPtrs[h]  =  cur;
-//          }
-//          if (cur->curHeight  <  nodeToDel->curHeight)  {
-//            cur->curHeight  =  nodeToDel->curHeight;
-//          }
-//        }
-        if (cur  &&  cur->curHeight  <  nodeToDel->curHeight)  {
+        if (cur  &&  cur->hash  ==  nodeToDel->hash)  {
           for (h = nodeToDel->curHeight;  h  >  cur->curHeight;  --h)  {
             cur->fwdPtrs[h]  =  nodeToDel->fwdPtrs[h];  // new head see what nodeToDel see now
             nodeToDel->fwdPtrs[h]  =  cur; // that will be used next for updatePath[h]->fwdPtrs[h]
