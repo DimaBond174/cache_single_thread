@@ -28,6 +28,8 @@ As expected Red-black Tree algorithm begins to win when data appears with a non-
 
 ## Now let's analyze the time complexity  O(n) of the algorithms.
 When the hash is not unique:
+
+
 ![OnCache.find.HashNotUnique](OnCache.find.HashNotUnique.png)
 
 ![OnCache.insert.HashNotUnique](OnCache.insert.HashNotUnique.png)
@@ -35,6 +37,8 @@ When the hash is not unique:
 ![QCache.find.HashNotUnique](QCache.find.HashNotUnique.png)
 
 QCache  is worse than O(n * log n)..
+
+
 ![QCache.insert.HashNotUnique](QCache.insert.HashNotUnique.png)
 
 ![STLCache.find.HashNotUnique](STLCache.find.HashNotUnique.png)
@@ -42,6 +46,7 @@ QCache  is worse than O(n * log n)..
 ![STLCache.insert.HashNotUnique](STLCache.insert.HashNotUnique.png)
 
 When the hash is unique:
+
 
 ![OnCache.find.HashUnique](OnCache.find.HashUnique.png)
 
