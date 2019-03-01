@@ -20,6 +20,8 @@
 #define TEST_MAXSIZE 1000000
 #define START_LOGPOINT 1000
 #define TEST_CASE_FILE
+#define LOAD_DATA_FROM_TEST_CASE_FILE false
+#define MAKE_HASH_NOT_UNIQUE false
 
 template <typename T>
 std::string to_string(T value)
@@ -278,9 +280,9 @@ std::string  getExePathS()  {
 int main(int  argc,  char  *argv[])  {
   /* params: */
   //  if you need same test with same data from previos run:
-  bool  fromFile  =  false;
+  bool  fromFile  =  LOAD_DATA_FROM_TEST_CASE_FILE;
   //  change hash function for best/worst case:
-  TKey::do_worst_case  =  false;
+  TKey::do_worst_case  =  MAKE_HASH_NOT_UNIQUE;
 
 
   QCoreApplication a(argc, argv);
