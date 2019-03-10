@@ -21,3 +21,5 @@ SOURCES += \
 HEADERS += \    
     stlcache.h    
     oncache.h
+    oncache2.h
+    folly/EvictingCacheMap.h

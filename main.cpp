@@ -14,14 +14,16 @@
 #include <chrono>
 #include <qstring.h>
 #include <qcache.h>
-#include "oncache.h"
+#include "oncache2.h"
+
 #include "stlcache.h"
+#include <folly/container/EvictingCacheMap.h>
 
 #define TEST_MAXSIZE 1000000
 #define START_LOGPOINT 1000
 #define TEST_CASE_FILE
 #define LOAD_DATA_FROM_TEST_CASE_FILE false
-#define MAKE_HASH_NOT_UNIQUE false
+#define MAKE_HASH_NOT_UNIQUE true
 
 template <typename T>
 std::string to_string(T value)
@@ -50,8 +52,48 @@ void  writeDuration(auto  &start,  std::string  &str)  {
   start  =  end;
 }
 
+/*
+ * This is Facebook cache based on Boost containers
+ * https://github.com/facebook/folly/blob/master/folly/container/EvictingCacheMap.h
+*/
+void  testBoostCache(const std::map<TKey, Elem *>  &mData,
+    std::string  &strInsert,  std::string  &strFind,
+    unsigned int  testSize,  unsigned int  capacity)  {
+  folly::EvictingCacheMap<TKey, Elem *, THash, TEqual> boostCache(capacity);
 
-void  testSTLChache(const std::map<TKey, Elem *>  &mData,
+  auto  start  =  std::chrono::high_resolution_clock::now();
+  unsigned int  i  =  0;
+  for (auto&&  it  :  mData)  {
+    boostCache.insert(it.second->key,  it.second);
+    ++i;
+    if  (i  >=  testSize)  {
+      break;
+    }
+  }  //for
+  writeDuration(start,  strInsert);
+
+  start  =  std::chrono::high_resolution_clock::now();
+  i  =  0;
+  unsigned int  notFound  =  0;
+  unsigned int  found  =  0;
+  for (auto&&  it  :  mData)  {
+    //For best speed, I only check the existence:
+    if (boostCache.exists(it.second->key))  {
+      ++found;
+    }  else  {
+      ++notFound;
+    }
+    ++i;
+    if  (i  >=  testSize)  {
+      break;
+    }
+  }  //for
+  writeDuration(start, strFind);
+  std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<notFound  <<  '\n';
+
+}  //  testBoostCache
+
+void  testSTLCache(const std::map<TKey, Elem *>  &mData,
     std::string  &strInsert,  std::string  &strFind,
     unsigned int  testSize,  unsigned int  capacity)  {
   LRU<TKey, Elem *>  stlCache(capacity);
@@ -71,9 +113,9 @@ void  testSTLChache(const std::map<TKey, Elem *>  &mData,
   unsigned int  notFound  =  0;
   unsigned int  found  =  0;
   for (auto&&  it  :  mData)  {
+    //For best speed, I only check the existence:
     if (stlCache.exist(it.second->key))  {
-      ++found;
-        //auto&& ptr = stlCache.get(it.second->key);
+      ++found;        
     }  else  {
       ++notFound;
     }
@@ -82,12 +124,13 @@ void  testSTLChache(const std::map<TKey, Elem *>  &mData,
       break;
     }
   }  //for
-  std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<notFound  <<  '\n';
   writeDuration(start, strFind);
-}  //  testSTLChache
+  std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<notFound  <<  '\n';
+
+}  //  testSTLCache
 
 
-void  testQChache(const std::map<TKey, Elem *>  &mData,
+void  testQCache(const std::map<TKey, Elem *>  &mData,
     std::string  &strInsert,  std::string  &strFind,
     unsigned int  testSize,  unsigned int  capacity)  {
   QCache<TKey, Elem> qCache;
@@ -119,13 +162,13 @@ void  testQChache(const std::map<TKey, Elem *>  &mData,
       break;
     }
   }  //  for
-
-  std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<  notFound  <<  '\n';
   writeDuration(start,  strFind);
-}  //  testQChache
+  std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<  notFound  <<  '\n';
+
+}  //  testQCache
 
 
-void  testOnChache(const std::map<TKey, Elem *>  &mData,
+void  testOnCache(const std::map<TKey, Elem *>  &mData,
     std::string  &strInsert,  std::string  &strFind,
     unsigned int  testSize,  unsigned int  capacity)  {
   OnCache oCache(capacity, [](const char * data)  {
@@ -183,10 +226,116 @@ void  testOnChache(const std::map<TKey, Elem *>  &mData,
       break;
     }
   }  //  for
+  writeDuration(start, strFind);
   std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<  notFound  <<  '\n';
-    writeDuration(start, strFind);
 }  //  OnChache
 
+
+void  testOnCache2(const std::map<TKey, Elem *>  &mData,
+    std::string  &strInsert,  std::string  &strFind,
+    unsigned int  testSize,  unsigned int  capacity)  {
+  OnCache2 oCache(capacity, 10, [](const char * data)  {
+        //std::cout<<"deleted:"<<data<<',';
+    });
+  auto  start  =  std::chrono::high_resolution_clock::now();
+  unsigned int  i  =  0;
+  for (auto&&  it  :  mData)  {
+    Elem  *ptr  =  it.second;
+
+//        if (ptr->key.keyArray[0]==538286
+//            ||ptr->key.keyArray[0]==705025
+//                ||ptr->key.keyArray[0]==1505242) {
+//            std::cout<<"\n";
+//        }
+//    if (ptr->key.keyArray[0]==18531564
+//            ||ptr->key.keyArray[0]==17501564) {
+//        std::cout<<"\n";
+//    }
+//        if (ptr->key.keyArray[0] == 47635
+//                ||  ptr->key.keyArray[0] == 6690060) {
+//            std::cout<<"\n";
+//        }
+//    if (ptr->key.keyArray[0] == 215343422) {
+//       std::cout<<"\n";
+//    }
+    oCache.insertNode(&(ptr->key),  ptr->data.c_str());
+  // oCache.find_bug();
+    ++i;
+    if  (i  >=  testSize)  {
+      break;
+    }
+  }  //  for
+  writeDuration(start, strInsert);
+
+  start  =  std::chrono::high_resolution_clock::now();
+  i  =  0;
+  unsigned int  notFound  =  0;
+  unsigned int  found  =  0;
+  for (auto&&  it  :  mData)  {
+    Elem  *ptr  =  it.second;
+    const char  *data  =  oCache.getData(&(ptr->key));
+    if  (data)  {
+      if  (data  ==  ptr->data.c_str())  {
+        ++found;
+      } else {
+        std::cout<<"ERROR(data):"<<ptr->data<<"<>"<<data<<'\n';
+      }
+    }  else  {
+             //std::cout<<"ERROR(NotFound):"<<ptr->key.keyArray[0]<<'\n';
+      ++notFound;
+    }
+    ++i;
+    if  (i  >=  testSize)  {
+      break;
+    }
+  }  //  for
+  writeDuration(start, strFind);
+  std::cout  <<  "found:"  <<  found  <<  " ,ERROR(NotFound):"  <<  notFound  <<  '\n';
+
+
+  //debug not found:
+//    i  =  0;
+//    for (auto&&  it  :  mData)  {
+//      Elem  *ptr  =  it.second;
+////          if (ptr->key.keyArray[0] == 86635) {
+////             std::cout << oCache.getRateCount() <<"\n";
+////          }
+////          if (ptr->key.keyArray[0] == 47635
+////                  ||  ptr->key.keyArray[0] == 6690060) {
+////            std::cout<<"\n";
+////          }
+////      if (ptr->key.keyArray[0] == 1010060
+////              ||  ptr->key.keyArray[0] == 1007461) {
+////        std::cout<<"\n";
+////      }
+//      oCache.insertNode(&(ptr->key),  ptr->data.c_str());
+//    // oCache.find_bug();
+//      ++i;
+//      if  (i  >=  capacity)  {
+//        break;
+//      }
+//    }  //  for
+//    i  =  0;
+//    for (auto&&  it  :  mData)  {
+//      Elem  *ptr  =  it.second;
+//      const char  *data  =  oCache.getData(&(ptr->key));
+//      if  (data)  {
+//        if  (data  ==  ptr->data.c_str())  {
+//          ++found;
+//        } else {
+//          std::cout<<"ERROR(data):"<<ptr->data<<"<>"<<data<<'\n';
+//        }
+//      }  else  {
+//               //std::cout<<"ERROR(NotFound):"<<ptr->key.keyArray[0]<<'\n';
+//        ++notFound;
+//        assert(false);
+//      }
+//      ++i;
+//      if  (i  >=  capacity)  {
+//        break;
+//      }
+//    }  //  for
+}  //  OnChache2
 
 bool  mkdir_p(const char  *filePath)  {
   if  (!(filePath  &&  *filePath))  {  return false;  }
@@ -367,9 +516,11 @@ int main(int  argc,  char  *argv[])  {
     std::map<std::string, TFunc>  mFun;
 
     //Used alhorithms:
-    mFun.insert(std::make_pair(std::string("QChache"),  testQChache));
-    mFun.insert(std::make_pair(std::string("STLChache"),  testSTLChache));
-    mFun.insert(std::make_pair(std::string("OnChache"),  testOnChache));
+    mFun.insert(std::make_pair(std::string("QCache"),  testQCache));
+    mFun.insert(std::make_pair(std::string("STLCache"),  testSTLCache));
+    mFun.insert(std::make_pair(std::string("OnCache"),  testOnCache));
+    mFun.insert(std::make_pair(std::string("OnCache2"),  testOnCache2));
+    mFun.insert(std::make_pair(std::string("BoostCache"),  testBoostCache));
     for (auto&&  p:  mFun)  {
         //*p(mData, strInsert, strFind, testSize, capacity);        
       strInsert.clear();
@@ -401,7 +552,7 @@ int main(int  argc,  char  *argv[])  {
 
 
 
-    //testQChache
+    //testQCache
 
     csvfile.close();
     std::cout << "\nThe end of tests.\n";

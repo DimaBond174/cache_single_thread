@@ -109,6 +109,21 @@ inline uint qHash(TKey key, uint seed = 0)
     return key.hash() ^ seed;
 }
 
+struct THash {
+  _GLIBCXX_PURE size_t
+  operator()(const TKey& key) const noexcept {
+    return key.hash();
+  }
+};
+
+
+  struct TEqual
+  {
+   bool operator()(const TKey&  l, const TKey&  r) const noexcept {
+     return 0  ==  l.cmp(&r);
+   }
+  };
+
 
 class  TONode  {
  public:
