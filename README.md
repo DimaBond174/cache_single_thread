@@ -7,7 +7,7 @@ At the moment, comparative testing of 3 algorithms is being performed:
 2. STL cache = Red-black Tree ( [from here](https://jaeyu.wordpress.com/2014/04/15/lru-cache-in-c/) )
 3. Boost Cache = boost::intrusive::unordered_set ( [from Facebook](https://github.com/facebook/folly/blob/master/folly/container/EvictingCacheMap.h) )
 4. OnCache = my implementation of the Hash Table + Skip List (reduced dependence on hash uniqueness)
-5. OnCache2 = my better implementation of the Hash Table + Skip List (twice reduced dependence on hash uniqueness)
+5. OnCache2 = my better implementation of the Hash Table + Skip List (twice reduced dependence on hash uniqueness). It is ARC-like (Adaptive Replacement Cache) algorithm:elements that are more often used have the opportunity to survive the destruction by the old age and continue to exist while they are used.
 
 By reducing the dependence on the uniqueness of the hash, you can simplify the hash function — for example, count not by the entire cached text, but by the first 10 characters. For example, if 1 kilobyte is cached, then the savings on the hash function can be 100 times == instead of 100 servers, only 1 will suffice.
 
