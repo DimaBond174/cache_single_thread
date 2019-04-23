@@ -1,4 +1,8 @@
 # Single-threaded caches
+
+This repository remained only for history. Algorithm OnCache2 finalized in the template OnCacheSMRU
+and is uploaded to the [cache_multi_thread (https://github.com/DimaBond174/cache_multi_thread)](https://github.com/DimaBond174/cache_multi_thread) repository along with multi-threaded versions and a more convenient test bench.
+
 ## Comparative testing of single-threaded caches for the SpecNet project
 
 The program creates a set of random data, then for various containers / collections measures the time of insertion and search of this data. The amount of data for the test starts from the initial size and then starts with a step of * 10: 100, 1000, 10000 .. The test results are saved to the file aka "cache.compare.1545103089.csv" next to the executable file "cacheCompare". It is possible to repeat the test with the last set of data for debugging.
@@ -86,7 +90,7 @@ The source code for the SpecNet project can be found in the repository:
 [https://github.com/DimaBond174/SpecNet](https://github.com/DimaBond174/SpecNet)
 
 ---
-  Copyright (c) Dmitriy Bondarenko
+  Copyright (c) Dmitriy Bondarenko,
   feel free to contact me: specnet.messenger@gmail.com
 
 
